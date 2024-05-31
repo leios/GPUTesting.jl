@@ -1,11 +1,20 @@
-using Metal
-function v_add(a,b,c)
-    i = thread_position_in_grid_1d()
+export v_add!
+
+@kernel function v_add_kernel!(a, b, c)
+    i = @index(Global, Linear)
     c[i] = a[i] + b[i]
-    return
 end
-a = MtlArray([2,3,4,5])
-b = MtlArray([6,7,8,9])
-c = similar(a)
-@metal threads = 2 groups = 2 v_add(a,b,c)
-display(c)
+
+function v_add!(a, b, c; n_threads = 256)
+    if typeof(a) != typeof(b) != typeof(c)
+        error("Types of a, b, and c are different!")
+    end
+
+    if length(a) != length(b) != length(c)
+        error("Lengths of a, b, and c are different!")
+    end
+
+    backend = get_backend(a)
+    kernel = v_add_kernel!(backend, n_threads)
+    kernel(a, b, c; ndrange = length(a))
+end

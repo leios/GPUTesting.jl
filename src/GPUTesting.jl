@@ -1,5 +1,7 @@
 module GPUTesting
 
-greet() = print("Hello World!")
+using KernelAbstractions
+
+include("v_add.jl")
 
 end # module GPUTesting

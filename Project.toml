@@ -2,3 +2,6 @@ name = "GPUTesting"
 uuid = "1783f84d-fc35-40a4-9fc1-0d2732b5f719"
 authors = ["James Schloss <jrs.schloss@gmail.com>"]
 version = "0.1.0"
+
+[deps]
+KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
