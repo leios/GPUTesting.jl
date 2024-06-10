@@ -23,11 +23,15 @@ function matrix_mult!(a, b, c; n_threads = 256)
         error("Types of a, b, and c are different!")
     end
 
-    if size(a)[2] != size(b)[1] != size(c)[]
-        error("Lengths of a, b, and c are different!")
+    if size(a)[2] != size(b)[1]
+        error("Matrices a and b are incompatible for multiplication!")
+    end
+
+    if size(a)[1] != size(c)[1] || size(b)[2] != size(c)[2]
+        error("Matrices c dimensions are incompatible to store the product!")
     end
 
     backend = get_backend(a)
-    kernel = v_add_kernel!(backend, n_threads)
-    kernel(a, b, c; ndrange = length(a))
+    kernel = matrix_mult_mult_kernel!(backend, n_threads)
+    kernel(a, b, c; ndrange = size(c))
 end
