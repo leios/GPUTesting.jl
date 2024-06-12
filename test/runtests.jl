@@ -1,24 +1,39 @@
 using Test
 using GPUTesting
 
-@testset "Generic tests..." begin
-    a = rand(100)
-    b = rand(100)
-    c = similar(a)
+using AMDGPU
+using CUDA
 
-    # vector addition tests
-    v_add!(a, b, c)
-    @test a .+ b == c
+array_types = [Array]
 
-    # vector multiplication tests
-    v_mult!(a, b, c)
-    @test a .* b == c
+if has_rocm_gpu()
+    push!(array_types, ROCArray)
+end
 
-    X = rand(10,20)
-    Y = rand(20,30)
-    Z = rand(10,30)
+if has_cuda_gpu()
+    push!(array_types, CuArray)
+end
 
-    # matrix multiplication tests
-    matrix_mult!(X,Y,Z)
-    @test isapprox(Z, X*Y)
+for ArrayType in array_types
+    @testset "Generic tests on $(string(ArrayType))" begin
+        a = ArrayType(rand(100))
+        b = ArrayType(rand(100))
+        c = ArrayType(similar(a))
+
+        # vector addition tests
+        v_add!(a, b, c)
+        @test a .+ b == c
+
+        # vector multiplication tests
+        v_mult!(a, b, c)
+        @test a .* b == c
+
+        X = ArrayType(rand(10,20))
+        Y = ArrayType(rand(20,30))
+        Z = ArrayType(rand(10,30))
+
+        # matrix multiplication tests
+        matrix_mult!(X,Y,Z)
+        @test isapprox(Z, X*Y)
+    end
 end
