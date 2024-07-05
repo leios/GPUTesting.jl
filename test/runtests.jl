@@ -1,11 +1,12 @@
 using Test
 using GPUTesting
 
-#=
+
 using AMDGPU
 using CUDA
 
 array_types = [Array]
+
 
 if has_rocm_gpu()
     push!(array_types, ROCArray)
@@ -14,7 +15,7 @@ end
 if has_cuda_gpu()
     push!(array_types, CuArray)
 end
-=#
+
 
 for ArrayType in array_types
     @testset "Generic tests on $(string(ArrayType))" begin

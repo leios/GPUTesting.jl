@@ -7,6 +7,7 @@ export perf_mat_mul!
     i,j = @index(Local, NTuple)
 
     TILE_DIM = @uniform @groupsize()[1]
+    BLOCK_ROWS = @uniform @groupsize()[2]
 
     #allocating shared memory for the sub matrix product calculation
     #BANK = 1, added to avoid banck coonflicts as a result of irregular thread access
@@ -26,7 +27,7 @@ export perf_mat_mul!
     @uniform NUM_TILES = div(R + TILE_DIM - 1, TILE_DIM)
 
     #loop over all tiles needed for the calculation
-    for t in 0:NUM_TILES-1
+    for t in 0:(NUM_TILES-1)
         # Cannot use @index(Global), because we use a smaller ndrange(gridsize woould reduce)
         I = (gi-1) * TILE_DIM + i
         J = (gj-1) * TILE_DIM + j
@@ -71,7 +72,7 @@ export perf_mat_mul!
 end
 
 
-function perf_mat_mul!(A, B, C; n_threads = (32,32))
+function perf_mat_mul!(A, B, C; n_threads = (16,16))
     if typeof(A) != typeof(B) != typeof(C)
         error("Types of a, b, and c are different!")
     end
@@ -86,5 +87,6 @@ function perf_mat_mul!(A, B, C; n_threads = (32,32))
 
     backend = get_backend(A)
     kernel = perf_mat_mul_kernel!(backend, n_threads)
-    kernel(A, B, C; ndrange = size(C))
+    padded_c = (size(C,1)+16, size(C,2)+16)
+    kernel(A, B, C; ndrange = padded_c)
 end
