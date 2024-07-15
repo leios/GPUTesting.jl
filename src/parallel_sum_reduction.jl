@@ -1,5 +1,7 @@
 export sumGPU!
 
+using KernelAbstractions: @atomic
+
 @kernel function sumGPU_kernel!(input_array, partial_sum)
     gi = @index(Global, Linear)
     i = @index(Local, Linear)
@@ -38,13 +40,14 @@ export sumGPU!
 
     # The incorrect part
     for k in 1:end_point
-        @synchronize
+        
 
         STRIDE = div(group_size, 2^k)
         I = (group_id-1)*group_size+i
         if (i <= STRIDE)
             @inbounds tile[i] += tile[i+STRIDE]  
         end
+        @synchronize
     end
     # The incorrect part : saving the first element to the partial sums 
 
@@ -57,8 +60,10 @@ export sumGPU!
     end
     @synchronize
     
-
-    partial_sum[group_id] = tile[1]
+    #saving the first element of every tile to add later in the CPU
+    if i == 1
+        @atomic partial_sum[i] += tile[i]
+    end
 end
 
 function sumGPU!(a; nthreads = 256)
