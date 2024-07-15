@@ -51,19 +51,11 @@ using KernelAbstractions: @atomic
     end
     # The incorrect part : saving the first element to the partial sums 
 
-    
-    # modifying input array for debugging ###
-    I = (group_id-1)*group_size+i
-    
-    if I <= input_length
-        @inbounds input_array[I] = tile[i]
-    end
-    @synchronize
-    
     #saving the first element of every tile to add later in the CPU
     if i == 1
-        @atomic partial_sum[i] += tile[i]
+        @atomic partial_sum[group_id] += tile[1]
     end
+   
 end
 
 function sumGPU!(a; nthreads = 256)
@@ -72,5 +64,5 @@ function sumGPU!(a; nthreads = 256)
 
     kernel = sumGPU_kernel!(backend, nthreads)
     kernel(a, b; ndrange = length(a))
-    return b
+    return sum(b)
 end
