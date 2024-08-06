@@ -8,5 +8,7 @@ include("matrix_mult.jl")
 include("parallel_vadd.jl")
 include("performant_matrix_mult.jl")
 include("parallel_sum_reduction.jl")
+include("parallel_sum_reduction2.jl")
+include("naive_TRMM.jl")
 
 end # module GPUTesting
