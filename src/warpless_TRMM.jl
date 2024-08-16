@@ -1,6 +1,6 @@
-export naive_TRMM!
+export warp_TRMM!
 
-@kernel function naive_TRMM_kernel!(A,B,C,
+@kernel function warp_TRMM_kernel!(A,B,C,
                             ::Val{BANK} = Val(1)) where BANK
     
     gi,gj = @index(Group, NTuple)
@@ -12,8 +12,9 @@ export naive_TRMM!
     #set for tracking indices with the 0 elements
     set0 = @uniform Set()
 
+
     #allocating shared memory for the sub matrix product calculation
-    #BANK = 1, added to avoid banck coonflicts as a result of irregular thread access
+    #BANK = 1, added to avoid bank conflicts as a result of irregular thread access
     tile1 = @localmem eltype(C) (TILE_DIM+BANK, TILE_DIM)
     tile2 = @localmem eltype(C) (TILE_DIM+BANK, TILE_DIM)
 
@@ -28,6 +29,16 @@ export naive_TRMM!
 
     #the number of tiles required will be dependent on the inner dimensions
     @uniform NUM_TILES = div(R + TILE_DIM - 1, TILE_DIM)
+
+    I = (gi-1) * TILE_DIM + i
+    J = (gj-1) * TILE_DIM + j
+
+    if (I<J)
+        if I <= N && J <= M
+            @inbounds C[I, J] = C_sub[1]
+        end
+    end
+
 
     #loop over all tiles needed for the calculation
     for t in 0:(NUM_TILES-1)
@@ -50,6 +61,7 @@ export naive_TRMM!
         if isapprox(tile1[i,j]+1, 1)
             @inbounds push!(set0, [I,J])
         end
+
         # wait for all tiles to be loaded
         @synchronize
 
@@ -59,14 +71,16 @@ export naive_TRMM!
 
         # calculate value of spot in output, use temporary value to allow for vectorization
         out = zero(eltype(C))
-        if (isapprox(1+tile1[i,j], 1))
+        
+        if (I<J)
             continue
         else
+
             @simd for k in 1:TILE_DIM
-                
                 @inbounds out += tile1[i, k] * tile2[k, j]
             end
         end
+       
         C_sub[1] += out
 
         @synchronize
@@ -83,7 +97,7 @@ export naive_TRMM!
 end
 
 
-function naive_TRMM!(A, B, C; n_threads = (16,16))
+function warp_TRMM!(A, B, C; n_threads = (16,16))
     if typeof(A) != typeof(B) != typeof(C)
         error("Types of a, b, and c are different!")
     end
@@ -97,7 +111,7 @@ function naive_TRMM!(A, B, C; n_threads = (16,16))
     end
 
     backend = get_backend(A)
-    kernel = naive_TRMM_kernel!(backend, n_threads)
+    kernel = warp_TRMM_kernel!(backend, n_threads)
     padded_c = (size(C,1)+16, size(C,2)+16)
     kernel(A, B, C; ndrange = padded_c)
 end

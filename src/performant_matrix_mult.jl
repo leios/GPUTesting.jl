@@ -28,7 +28,7 @@ export perf_mat_mul!
 
     #loop over all tiles needed for the calculation
     for t in 0:(NUM_TILES-1)
-        # Cannot use @index(Global), because we use a smaller ndrange(gridsize woould reduce)
+        # Cannot use @index(Global), because we use a smaller ndrange(gridsize would reduce)
         I = (gi-1) * TILE_DIM + i
         J = (gj-1) * TILE_DIM + j
 
