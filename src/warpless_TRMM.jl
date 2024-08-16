@@ -1,6 +1,6 @@
-export warp_TRMM!
+export warpless_TRMM!
 
-@kernel function warp_TRMM_kernel!(A,B,C,
+@kernel function warpless_TRMM_kernel!(A,B,C,
                             ::Val{BANK} = Val(1)) where BANK
     
     gi,gj = @index(Group, NTuple)
@@ -97,7 +97,7 @@ export warp_TRMM!
 end
 
 
-function warp_TRMM!(A, B, C; n_threads = (16,16))
+function warpless_TRMM!(A, B, C; n_threads = (16,16))
     if typeof(A) != typeof(B) != typeof(C)
         error("Types of a, b, and c are different!")
     end
@@ -111,7 +111,7 @@ function warp_TRMM!(A, B, C; n_threads = (16,16))
     end
 
     backend = get_backend(A)
-    kernel = warp_TRMM_kernel!(backend, n_threads)
+    kernel = warpless_TRMM_kernel!(backend, n_threads)
     padded_c = (size(C,1)+16, size(C,2)+16)
     kernel(A, B, C; ndrange = padded_c)
 end

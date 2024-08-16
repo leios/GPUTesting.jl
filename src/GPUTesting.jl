@@ -10,6 +10,6 @@ include("performant_matrix_mult.jl")
 include("parallel_sum_reduction.jl")
 include("parallel_sum_reduction2.jl")
 include("naive_TRMM.jl")
-include("warp_TRMM.jl")
+include("warpless_TRMM.jl")
 
 end # module GPUTesting
