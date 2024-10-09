@@ -3,9 +3,6 @@ include("performant_matrix_mult.jl")
 
 
 function native_TRMM!(A, B)
-    if typeof(A) != typeof(B)
-        error("Types of a, b, and c are different!")
-    end
 
     if size(A)[2] != size(B)[1]
         error("Matrices a and b are incompatible for multiplication!")
