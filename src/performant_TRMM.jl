@@ -10,7 +10,7 @@ end
 
 
 
-function performant_TRMM!(A, B, LIMIT ; n_threads = (16,16) )
+function performant_TRMM!(A, B, LIMIT = 16 ; n_threads = (16,16) )
 
     #resize
      
@@ -21,28 +21,6 @@ function performant_TRMM!(A, B, LIMIT ; n_threads = (16,16) )
     A_2[1 : size(A)[2] , 1:size(A)[2]] = A
     B_2[1 : size(A)[2] , 1:size(A)[2]] = @view(B[1:end, 1:end])
     size_a = div(k, 2)
-
-    #base case
-    #check the size of the matrix
-
-    #step 1 TRMM
-    B_2[size_a + 1: end , 1:size_a]        = A_2[size_a + 1: end ,size_a+1: end] * B_2[size_a + 1: end ,1:size_a]
-    B_2[size_a + 1: end , size_a + 1: end] = A_2[size_a + 1: end ,size_a+1: end] * B_2[size_a + 1: end ,size_a + 1: end]
-
-    #step 2
-    B_2[size_a + 1: end ,1:size_a]        =  B_2[size_a + 1: end ,1:size_a] + (A_2[size_a + 1: end , 1: size_a] * B_2[1:size_a ,1:size_a])
-    B_2[size_a + 1: end ,size_a + 1: end] =   B_2[size_a + 1: end ,size_a + 1: end] + (A_2[size_a + 1: end , 1: size_a] * B_2[1:size_a ,size_a + 1: end])
-
-    #step 3
-    B_2[1 : size_a, 1: size_a] = A_2[ 1: size_a , 1: size_a  ] * B_2[1: size_a , 1: size_a ]
-    B_2[1 : size_a , size_a + 1: end] = A_2[ 1: size_a , 1: size_a  ] * B_2[1: size_a , size_a + 1: end]
-
-    B .= @view(B_2[1:size(A)[2], 1:size(A)[2]])
-
-    #recursion
-
-
-    
 
     # #recursive function
     # function recursive_TRMM!(A_2, B_2, size_a)
@@ -89,5 +67,27 @@ function performant_TRMM!(A, B, LIMIT ; n_threads = (16,16) )
     # end
 
     # recursive_TRMM!(@view(A_pad[1:end, 1:end]), @view(B_pad[1:end, 1:end]), div(k,2))
+    recursive_TRMM!(A_2, @view(B_2[1:end, 1:end]), size_a, LIMIT)
+
+    B .= @view(B_2[1:size(A)[2], 1:size(A)[2]])
+end
+
+#recursive function
+function recursive_TRMM!(A_2, B_2, size_a, LIMIT = 16)
+
+    if (size_a < LIMIT)
+        #step 1 TRMM
+        B_2[size_a + 1: end , 1:size_a]        = A_2[size_a + 1: end ,size_a+1: end] * B_2[size_a + 1: end ,1:size_a]
+        B_2[size_a + 1: end , size_a + 1: end] = A_2[size_a + 1: end ,size_a+1: end] * B_2[size_a + 1: end ,size_a + 1: end]
+
+        #step 2
+        B_2[size_a + 1: end ,1:size_a]        =  B_2[size_a + 1: end ,1:size_a] + (A_2[size_a + 1: end , 1: size_a] * B_2[1:size_a ,1:size_a])
+        B_2[size_a + 1: end ,size_a + 1: end] =   B_2[size_a + 1: end ,size_a + 1: end] + (A_2[size_a + 1: end , 1: size_a] * B_2[1:size_a ,size_a + 1: end])
+
+        #step 3
+        B_2[1 : size_a, 1: size_a] = A_2[ 1: size_a , 1: size_a  ] * B_2[1: size_a , 1: size_a ]
+        B_2[1 : size_a , size_a + 1: end] = A_2[ 1: size_a , 1: size_a  ] * B_2[1: size_a , size_a + 1: end]
+
+    end
 
 end
