@@ -88,6 +88,22 @@ function recursive_TRMM!(A_2, B_2, size_a, LIMIT = 16)
         B_2[1 : size_a, 1: size_a] = A_2[ 1: size_a , 1: size_a  ] * B_2[1: size_a , 1: size_a ]
         B_2[1 : size_a , size_a + 1: end] = A_2[ 1: size_a , 1: size_a  ] * B_2[1: size_a , size_a + 1: end]
 
+    else
+        # recursive case
+        h_size = div(size_a, 2)
+        #step 1
+        recursive_TRMM!(A_2[h_size + 1: end ,h_size +1: end], @view(B_2[h_size + 1: end ,1:h_size]), h_size, LIMIT)
+        recursive_TRMM!(A_2[h_size + 1: end ,h_size +1: end], @view(B_2[h_size + 1: end ,h_size + 1: end]), h_size, LIMIT)
+
+        #step 2: GEMM
+        B_2[h_size + 1: end ,1:h_size]        =  B_2[h_size + 1: end ,1:h_size] + (A_2[h_size + 1: end , 1: h_size] * B_2[1:h_size, 1:h_size])
+        B_2[h_size + 1: end ,h_size + 1: end] =   B_2[h_size + 1: end ,h_size + 1: end] + (A_2[h_size + 1: end , 1: h_size] * B_2[1:h_size ,h_size + 1: end])
+
+
+        #step 3
+        recursive_TRMM!(A_2[1: h_size, 1: h_size] , @view(B_2[1: h_size, 1: h_size]), h_size, LIMIT)
+        recursive_TRMM!(A_2[ 1: h_size, 1: h_size], @view(B_2[1: h_size, h_size + 1: end]), h_size, LIMIT)
+
     end
 
 end
