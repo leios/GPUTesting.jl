@@ -37,7 +37,7 @@ function performant_TRMM!(A, B, LIMIT ; n_threads = (16,16) )
     B_2[1 : size_a, 1: size_a] = A_2[ 1: size_a , 1: size_a  ] * B_2[1: size_a , 1: size_a ]
     B_2[1 : size_a , size_a + 1: end] = A_2[ 1: size_a , 1: size_a  ] * B_2[1: size_a , size_a + 1: end]
 
-    return B_2
+    B .= @view(B_2[1:size(A)[2], 1:size(A)[2]])
 
     #recursion
 
