@@ -1,10 +1,12 @@
 using Test
 using GPUTesting
 
+
 using AMDGPU
 using CUDA
 
 array_types = [Array]
+
 
 if has_rocm_gpu()
     push!(array_types, ROCArray)
@@ -13,6 +15,7 @@ end
 if has_cuda_gpu()
     push!(array_types, CuArray)
 end
+
 
 for ArrayType in array_types
     @testset "Generic tests on $(string(ArrayType))" begin
@@ -34,6 +37,9 @@ for ArrayType in array_types
 
         # matrix multiplication tests
         matrix_mult!(X,Y,Z)
+        @test isapprox(Z, X*Y)
+
+        perf_mat_mul!(X, Y, Z)
         @test isapprox(Z, X*Y)
     end
 end
