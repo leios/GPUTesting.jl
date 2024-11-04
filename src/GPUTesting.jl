@@ -1,6 +1,7 @@
 module GPUTesting
 
 using KernelAbstractions
+using Dagger
 
 include("v_add.jl")
 include("v_mult.jl")
@@ -13,5 +14,6 @@ include("naive_TRMM.jl")
 include("warpless_TRMM.jl")
 include("native_TRMM.jl")
 include("performant_TRMM.jl")
+include("performant_TRMM_dagger.jl")
 
 end # module GPUTesting
