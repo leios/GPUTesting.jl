@@ -15,17 +15,18 @@ function performant_TRMM!(A, B, LIMIT = 16 ; n_threads = (16,16))
     #resize
      
     k  = 2^(Int(ceil(log(2, size(A)[2]))))
-    A_2 = zeros(k, k)
-    B_2 = zeros(k ,k)
-
-    A_2[1 : size(A)[2] , 1:size(A)[2]] = A
-    B_2[1 : size(A)[2] , 1:size(A)[2]] = @view(B[1:end, 1:end])
+    ArrayType = typeof(A).name.wrapper
+    A_2 = ArrayType(zeros(eltype(A) , k, k))
+    B_2 = ArrayType(zeros(eltype(A), k ,k))
+    A_2[1 : size(A)[2] , 1:size(A)[2]] .= A
+    B_2[1 : size(A)[2] , 1:size(A)[2]] .= @view(B[1:end, 1:end])
     size_a = div(k, 2)
 
     # recursive_TRMM!(@view(A_pad[1:end, 1:end]), @view(B_pad[1:end, 1:end]), div(k,2))
-    recursive_TRMM!(A_2, @view(B_2[1:end, 1:end]), size_a, LIMIT)
+    timing = Metal.@elapsed recursive_TRMM!(A_2, @view(B_2[1:end, 1:end]), size_a, LIMIT)
 
     B .= @view(B_2[1:size(A)[2], 1:size(A)[2]])
+    return timing
 end
 
 #recursive function

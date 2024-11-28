@@ -2,6 +2,7 @@ module GPUTesting
 
 using KernelAbstractions
 using Dagger
+using Metal
 
 include("v_add.jl")
 include("v_mult.jl")
