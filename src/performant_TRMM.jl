@@ -22,8 +22,9 @@ function performant_TRMM!(A, B, LIMIT = 16 ; n_threads = (16,16))
     B_2[1 : size(A)[2] , 1:size(A)[2]] .= @view(B[1:end, 1:end])
     size_a = div(k, 2)
 
-    recursive_TRMM!(@view(A_pad[1:end, 1:end]), @view(B_pad[1:end, 1:end]), div(k,2))
+    #recursive_TRMM!(@view(A_pad[1:end, 1:end]), @view(B_pad[1:end, 1:end]), div(k,2))
     #timing = Metal.@elapsed recursive_TRMM!(A_2, @view(B_2[1:end, 1:end]), size_a, LIMIT)
+    recursive_TRMM!(A_2, @view(B_2[1:end, 1:end]), size_a, LIMIT)
 
     B .= @view(B_2[1:size(A)[2], 1:size(A)[2]])
     return timing
