@@ -33,47 +33,50 @@ function recursive_TRMM_dag!(A_2, B_2, size_a, LIMIT = 16)
 
     if (size_a < LIMIT)
 
-        Dagger.spawn(() -> begin
+        # Forgot to add datadeps for the base case
+        # Dagger.spawn(() -> begin
+        #     #step 1 TRMM
+        #     B_2[size_a+1:end , 1:size_a]        = A_2[size_a+1:end ,size_a+1: end] * B_2[size_a+1:end, 1:size_a]
+        #     B_2[size_a+1:end , size_a+1:end] = A_2[size_a+1:end ,size_a+1: end] * B_2[size_a+1:end, size_a+1:end]
+
+        #     #step 2
+        #     B_2[size_a+1:end, 1:size_a]        =  B_2[size_a+1:end ,1:size_a] + (A_2[size_a+1:end , 1:size_a] * B_2[1:size_a,1:size_a])
+        #     B_2[size_a+1:end, size_a+1:end] =   B_2[size_a+1:end ,size_a+1:end] + (A_2[size_a+1:end , 1:size_a] * B_2[1:size_a, size_a+1:end])
+
+        #     #step 3
+        #     B_2[1:size_a, 1:size_a] = A_2[ 1:size_a , 1:size_a] * B_2[1:size_a , 1:size_a]
+        #     B_2[1:size_a , size_a+1:end] = A_2[1:size_a , 1:size_a] * B_2[1:size_a , size_a+1:end]
+        # end)
+
+        Dagger.spawn_datadeps() do
             #step 1 TRMM
-            B_2[size_a+1:end , 1:size_a]        = A_2[size_a+1:end ,size_a+1: end] * B_2[size_a+1:end, 1:size_a]
-            B_2[size_a+1:end , size_a+1:end] = A_2[size_a+1:end ,size_a+1: end] * B_2[size_a+1:end, size_a+1:end]
+            Dagger.@spawn  inplace_mult(A_2, InOut(@view(B_2[1:end, 1:end])))
+            # Dagger.@spawn  inplace_mult(A_2[size_a+1:end ,size_a+1: end] , InOut(@view(B_2[size_a+1:end, size_a+1:end])))
 
-            #step 2
-            B_2[size_a+1:end, 1:size_a]        =  B_2[size_a+1:end ,1:size_a] + (A_2[size_a+1:end , 1:size_a] * B_2[1:size_a,1:size_a])
-            B_2[size_a+1:end, size_a+1:end] =   B_2[size_a+1:end ,size_a+1:end] + (A_2[size_a+1:end , 1:size_a] * B_2[1:size_a, size_a+1:end])
+            # #step 2
+            # Dagger.@spawn mult(A_2[size_a + 1: end , 1: size_a], B_2[1:size_a, 1:size_a],  InOut(@view(B_2[size_a+1:end ,1:size_a])))
+            # Dagger.@spawn mult(A_2[size_a + 1: end , 1: size_a], B_2[1:size_a ,size_a + 1: end], InOut(@view(B_2[size_a+1:end ,size_a+1:end])))
 
-            #step 3
-            B_2[1:size_a, 1:size_a] = A_2[ 1:size_a , 1:size_a] * B_2[1:size_a , 1:size_a]
-            B_2[1:size_a , size_a+1:end] = A_2[1:size_a , 1:size_a] * B_2[1:size_a , size_a+1:end]
-        end)
+            # #step 3
+            # Dagger.@spawn  inplace_mult(A_2[ 1:size_a , 1:size_a] , InOut(@view(B_2[1:size_a , 1:size_a])))
+            # Dagger.@spawn  inplace_mult(A_2[1:size_a , 1:size_a] , InOut(@view(B_2[1:size_a , size_a+1:end])))
+        end
         
         
 
     else
         # recursive case
         h_size = div(size_a, 2)
+        
+        Dagger.spawn_datadeps() do
         #step 1
-        Dagger.spawn_datadeps() do 
             Dagger.@spawn recursive_TRMM!(A_2[h_size+1:end, h_size+1:end], InOut(@view(B_2[h_size+1:end ,1:h_size])), h_size, LIMIT)
             Dagger.@spawn recursive_TRMM!(A_2[h_size+1:end, h_size+1:end], InOut(@view(B_2[h_size+1:end ,h_size+1:end])), h_size, LIMIT)
-        
-        
 
         #step 2: GEMM
-        
-            #B_2[h_size+1:end ,1:h_size]        =  B_2[h_size + 1: end ,1:h_size] + (A_2[h_size + 1: end , 1: h_size] * B_2[1:h_size, 1:h_size])
-            #B_2[h_size+1:end ,h_size+1:end] =   B_2[h_size + 1: end ,h_size + 1: end] + (A_2[h_size + 1: end , 1: h_size] * B_2[1:h_size ,h_size + 1: end])
-
             Dagger.@spawn mult(A_2[h_size + 1: end , 1: h_size], B_2[1:h_size, 1:h_size],  InOut(@view(B_2[h_size+1:end ,1:h_size])))
             Dagger.@spawn mult(A_2[h_size + 1: end , 1: h_size], B_2[1:h_size ,h_size + 1: end], InOut(@view(B_2[h_size+1:end ,h_size+1:end])))
         
-        
-        
-        
-        #B_2[h_size+1:end ,1:h_size]        =  B_2[h_size + 1: end ,1:h_size] + (A_2[h_size + 1: end , 1: h_size] * B_2[1:h_size, 1:h_size])
-        #B_2[h_size+1:end ,h_size+1:end] =   B_2[h_size + 1: end ,h_size + 1: end] + (A_2[h_size + 1: end , 1: h_size] * B_2[1:h_size ,h_size + 1: end])
-
-
         #step 3
             Dagger.@spawn recursive_TRMM!(A_2[1: h_size, 1: h_size] , InOut(@view(B_2[1: h_size, 1: h_size])), h_size, LIMIT)
             Dagger.@spawn recursive_TRMM!(A_2[ 1: h_size, 1: h_size], InOut(@view(B_2[1: h_size, h_size + 1: end])), h_size, LIMIT)
@@ -86,3 +89,10 @@ function mult(A, B, C)
     D = A*B + C
     copyto!(C, D)
 end
+
+# in-place multiplication
+function inplace_mult(A,B)
+    D = A*B
+    copyto!(B, D)
+end
+
