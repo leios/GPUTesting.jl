@@ -27,7 +27,6 @@ function performant_TRMM!(A, B, LIMIT = 16 ; n_threads = (16,16))
     recursive_TRMM!(A_2, @view(B_2[1:end, 1:end]), size_a, LIMIT)
 
     B .= @view(B_2[1:size(A)[2], 1:size(A)[2]])
-    return timing
 end
 
 #recursive function
