@@ -22,7 +22,7 @@ end
 
 
 
-@kernel function GEMM_TRMM_kernel(A, B 
+@kernel function GEMM_TRMM_kernel!(A, B, 
                                     ::Val{BANK} = Val(1)) where BANK
     
     gi,gj = @index(Group, NTuple)
@@ -74,7 +74,7 @@ end
         J = (gj-1) * TILE_DIM + j
 
         # calculate value of spot in output, use temporary value to allow for vectorization
-        out = zero(eltype(C))
+        out = zero(eltype(B))
         @simd for k in 1:TILE_DIM
             @inbounds out += tile1[i, k] * tile2[k, j]
         end
@@ -89,7 +89,7 @@ end
 
     # save if inbounds
     if I <= N && J <= M
-        @inbounds B[I, J] = C_sub[1]
+        @inbounds B[I, J] = C_sub[1] + B[I,J]
     end
 end
 
@@ -114,7 +114,7 @@ end
 
 
 
-function performant_TRMM!(A, B, LIMIT = 16 ; n_threads = (16,16))
+function performant_TRMM!(A, B, LIMIT = 16)
 
     #resize
      
@@ -134,7 +134,7 @@ function performant_TRMM!(A, B, LIMIT = 16 ; n_threads = (16,16))
 end
 
 #recursive function
-function recursive_TRMM!(A_2, B_2, size_a, LIMIT = 16)
+function recursive_TRMM!(A_2, B_2, size_a, LIMIT = 128)
 
     if (size_a < LIMIT)
 
@@ -159,11 +159,14 @@ function recursive_TRMM!(A_2, B_2, size_a, LIMIT = 16)
         # B_2[1:size_a, 1:size_a] = A_2[ 1:size_a , 1:size_a] * b00
         # B_2[1:size_a , size_a+1:end] = A_2[1:size_a , 1:size_a] * b01
 
-        B_2 = A_2 * B_2
+        ##################
+        # B_2 = A_2 * B_2
+        TRMM_base!(A_2, B_2)
+        ####################
 
     else
-        B00 = copy(B_2[1: h_size, 1: h_size])
-        B01 = copy(B_2[1: h_size, h_size + 1: end])
+        # B00 = copy(B_2[1: h_size, 1: h_size])
+        # B01 = copy(B_2[1: h_size, h_size + 1: end])
 
         # recursive case
         h_size = div(size_a, 2)
@@ -172,11 +175,18 @@ function recursive_TRMM!(A_2, B_2, size_a, LIMIT = 16)
         recursive_TRMM!(A_2[h_size+1:end, h_size+1:end], @view(B_2[h_size+1:end ,h_size+1:end]), h_size, LIMIT)
 
         #step 2: GEMM: use parallelism
-        B00 =  (A_2[h_size + 1: end , 1: h_size] * B00)
-        B01 =    (A_2[h_size + 1: end , 1: h_size] * B01)
+        # B00 =  (A_2[h_size + 1: end , 1: h_size] * B00)
+        # B01 =    (A_2[h_size + 1: end , 1: h_size] * B01)
 
-        B_2[h_size+1:end ,1:h_size]        =  B_2[h_size + 1: end ,1:h_size] + B00
-        B_2[h_size+1:end ,h_size+1:end] = B_2[h_size+1:end ,h_size+1:end] + B01
+        # B_2[h_size+1:end ,1:h_size]        =  B_2[h_size + 1: end ,1:h_size] + B00
+        # B_2[h_size+1:end ,h_size+1:end] = B_2[h_size+1:end ,h_size+1:end] + B01
+
+        ###########################################
+
+        GEMM_TRMM!(A_2[h_size + 1: end , 1: h_size], (B_2[h_size+1:end ,1:h_size]))
+        GEMM_TRMM!(A_2[h_size + 1: end , 1: h_size], (B_2[h_size+1:end ,h_size+1:end]))
+
+        ###########################################
 
         #step 3
         recursive_TRMM!(A_2[1: h_size, 1: h_size] , @view(B_2[1: h_size, 1: h_size]), h_size, LIMIT)
