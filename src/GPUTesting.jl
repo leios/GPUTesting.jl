@@ -16,5 +16,6 @@ include("warpless_TRMM.jl")
 include("native_TRMM.jl")
 include("performant_TRMM.jl")
 include("performant_TRMM_dagger.jl")
+include("shark_TRMM.jl")
 
 end # module GPUTesting

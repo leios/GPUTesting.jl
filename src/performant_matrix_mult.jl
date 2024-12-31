@@ -86,7 +86,7 @@ function perf_mat_mul!(A, B, C; n_threads = (16,16))
     end
 
     backend = get_backend(A)
-    kernel = perf_mat_mul_kernel!(backend, n_threads)
+    kernel = perf_mat_mul_kernel!(backend,n_threads)
     padded_c = (size(C,1)+16, size(C,2)+16)
     kernel(A, B, C; ndrange = padded_c)
 end

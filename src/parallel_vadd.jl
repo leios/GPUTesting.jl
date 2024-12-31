@@ -15,7 +15,7 @@ import KernelAbstractions.Extras: @unroll
     I = (gi-1) * TILE_DIM + i
 
     @unroll for k in 0:BLOCK_ROWS:(TILE_DIM-1)
-        @inbounds tile[i] = A[I] + B[I]
+        @inbounds tile[i] = a[I] + b[I]
     end
 
     @synchronize
