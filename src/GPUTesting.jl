@@ -2,6 +2,7 @@ module GPUTesting
 
 using KernelAbstractions
 using Dagger
+using LinearAlgebra
 #using Metal
 
 include("v_add.jl")
@@ -17,5 +18,6 @@ include("native_TRMM.jl")
 include("performant_TRMM.jl")
 include("performant_TRMM_dagger.jl")
 include("shark_TRMM.jl")
+include("basline_TRMM.jl")
 
 end # module GPUTesting

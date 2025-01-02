@@ -1,5 +1,6 @@
 export gemm!
 export trmm!
+export createBlockTrmm!
 
 # start: start of block A
 # end_index: end of block A
@@ -167,7 +168,8 @@ function trmm_recursive!(Afull, Bfull, start_index, end_index, tileSizeA, tileSi
 
         backend = get_backend(A)
         padded_c = (size(B,1)+16, size(B,2)+16)
-        createTRMMBlockKernel!(backend, (nthreads, nthreads))(A, B, B; ndrange = padded_c)
+        createTRMMBlockKernel!(backend, (nthreads, nthreads))(A, B, B; ndrange = padded_c) #BLAS.trmm!
+        
     
     else
         # split at the next multiple of the TileSize
@@ -177,7 +179,7 @@ function trmm_recursive!(Afull, Bfull, start_index, end_index, tileSizeA, tileSi
 
         # considering the lower triangular case first
         trmm_recursive!(Afull, Bfull, start_index+split, end_index, tileSizeA, tileSizeB, nthreads)        
-        gemm!(Afull, Bfull, start_index+split, end_index, start_index, start_index+split - 1, start_index, start_index + split - 1, end_index)
+        gemm!(Afull, Bfull, start_index+split, end_index, start_index, start_index+split - 1, start_index, start_index + split - 1, end_index) #BLAS.gemm!
         trmm_recursive!(Afull, Bfull, start_index, start_index+split-1, tileSizeA, tileSizeB, nthreads)
 
     end
@@ -211,6 +213,15 @@ function gemm!(Afull, Bfull, ll_startR, ll_endR, ll_startC, ll_endC, b_upper_sta
     A = @view(Afull[ll_startR:ll_endR, ll_startC:ll_endC])
     B = @view(Bfull[b_upper_start:b_upper_end, 1:end])
     C = @view(Bfull[b_upper_end+1:end_index, 1:end])
+
+    
+    backend = get_backend(A)
+    padded_c = (size(C,1)+16, size(C,2)+16)
+    gemm_trmm_kernel!(backend, n_threads)(A, B, C; ndrange = padded_c)
+    #kernel(A, B, C; ndrange = padded_c)
+end
+
+function createBlockTrmm!(A, B, C; n_threads = (16, 16))
 
     
     backend = get_backend(A)
