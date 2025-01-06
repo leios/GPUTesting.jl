@@ -54,7 +54,7 @@ export createBlockTrmm!
         # wait for all tiles to be loaded
         @synchronize
 
-        # get global values again (because of synchronize?)
+        # get global values again
         I = (gi-1) * TILE_DIM + i
         J = (gj-1) * TILE_DIM + j
 
@@ -76,6 +76,7 @@ export createBlockTrmm!
     if I <= N && J <= M
         @inbounds C[I, J] += C_sub[1]
     end
+    @synchronize
 end
 
 
@@ -149,6 +150,7 @@ end
     if I <= N && J <= M
         @inbounds C[I, J] = C_sub[1]
     end
+    @synchronize
 end
 
 
@@ -160,15 +162,16 @@ function trmm_recursive!(Afull, Bfull, start_index, end_index, tileSizeA, tileSi
     # if the matrix is small enough, call the computation kernel directly for the block
     if size_tile <= tileSizeA
         # set the kernel arguments
-        gWorkSize = (nthreads, div((size(Bfull , 2)+tileSizeB-1), tileSizeB) * nthreads)
+        gWorkSize = (nthreads, div((size(Bfull)[2]+tileSizeB-1), tileSizeB) * nthreads)
         lWorkSize = (nthreads, nthreads)
         A = @view(Afull[start_index:end_index, start_index: end_index])
         B = @view(Bfull[start_index:end_index, 1:end])
         
 
         backend = get_backend(A)
-        padded_c = (size(B,1)+16, size(B,2)+16)
-        createTRMMBlockKernel!(backend, (nthreads, nthreads))(A, B, B; ndrange = padded_c) #BLAS.trmm!
+        padded_c = (size(B,1)+nthreads[1], size(B,2)+nthreads[1])
+        createTRMMBlockKernel!(backend, lWorkSize)(A, B, B; ndrange = padded_c) 
+    
         
     
     else
@@ -178,8 +181,10 @@ function trmm_recursive!(Afull, Bfull, start_index, end_index, tileSizeA, tileSi
          
 
         # considering the lower triangular case first
+
+
         trmm_recursive!(Afull, Bfull, start_index+split, end_index, tileSizeA, tileSizeB, nthreads)        
-        gemm!(Afull, Bfull, start_index+split, end_index, start_index, start_index+split - 1, start_index, start_index + split - 1, end_index) #BLAS.gemm!
+        gemm!(Afull, Bfull, start_index+split, end_index, start_index, start_index+split - 1, start_index, start_index + split - 1, end_index)
         trmm_recursive!(Afull, Bfull, start_index, start_index+split-1, tileSizeA, tileSizeB, nthreads)
 
     end
@@ -199,7 +204,7 @@ function trmm!(A, B)
         error("Matrix A and B not compatible for matrix product!")
     end
 
-    TILE_SIZE_A = 32
+    TILE_SIZE_A = 16
     TILE_SIZE_B = 32
     nthreads = 16
 
@@ -218,6 +223,7 @@ function gemm!(Afull, Bfull, ll_startR, ll_endR, ll_startC, ll_endC, b_upper_sta
     backend = get_backend(A)
     padded_c = (size(C,1)+16, size(C,2)+16)
     gemm_trmm_kernel!(backend, n_threads)(A, B, C; ndrange = padded_c)
+    KernelAbstractions.synchronize(backend)
     #kernel(A, B, C; ndrange = padded_c)
 end
 
@@ -227,5 +233,6 @@ function createBlockTrmm!(A, B, C; n_threads = (16, 16))
     backend = get_backend(A)
     padded_c = (size(C,1)+16, size(C,2)+16)
     gemm_trmm_kernel!(backend, n_threads)(A, B, C; ndrange = padded_c)
+    KernelAbstractions.synchronize(backend)
     #kernel(A, B, C; ndrange = padded_c)
 end
