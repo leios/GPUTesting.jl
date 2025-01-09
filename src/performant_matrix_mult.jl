@@ -69,6 +69,7 @@ export perf_mat_mul!
     if I <= N && J <= M
         @inbounds C[I, J] = C_sub[1]
     end
+    @synchronize
 end
 
 

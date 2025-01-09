@@ -7,6 +7,25 @@ export createBlockTrmm!
 # unit_index: whether A is unit triangular
 # upper_index: whether A is an upper triaingular matrix
 
+@kernel function lmem_copy_kernel!(output, @Const(input), 
+                                                    ::Val{BANK} = Val(1),) where BANK
+    I, J = @index(Global, NTuple)
+    i, j = @index(Local, NTuple)
+
+    N = @uniform @groupsize()[1]
+    M = @uniform @groupsize()[2]
+
+    # +1 to avoid bank conflicts on shared memory
+    tile = @localmem eltype(output) (N + BANK, M)
+
+    @inbounds tile[i, j] = input[I, J]
+
+    @synchronize
+
+    @inbounds output[I, J] = tile[i, j]
+end
+
+
 @kernel function gemm_trmm_kernel!(A,B, C,
                             ::Val{BANK} = Val(1)) where BANK
     
@@ -156,21 +175,22 @@ end
 
 # @kernel function createTRMMBlockKernel2!(A, B, start_index, end_index, )
 
-function trmm_recursive!(Afull, Bfull, start_index, end_index, tileSizeA, tileSizeB, nthreads)
+function trmm_recursive!(Afull, Bfull, Cfull, start_index, end_index, limit)
     size_tile = end_index - start_index + 1
 
     # if the matrix is small enough, call the computation kernel directly for the block
-    if size_tile <= tileSizeA
+    if size_tile <= limit
         # set the kernel arguments
-        gWorkSize = (nthreads, div((size(Bfull)[2]+tileSizeB-1), tileSizeB) * nthreads)
+        nthreads = 16
         lWorkSize = (nthreads, nthreads)
         A = @view(Afull[start_index:end_index, start_index: end_index])
         B = @view(Bfull[start_index:end_index, 1:end])
+        C = @view(Cfull[start_index:end_index, 1:end])
         
 
         backend = get_backend(A)
         padded_c = (size(B,1)+nthreads[1], size(B,2)+nthreads[1])
-        createTRMMBlockKernel!(backend, lWorkSize)(A, B, B; ndrange = padded_c) 
+        createTRMMBlockKernel!(backend, lWorkSize)(A, B, C; ndrange = padded_c) 
     
         
     
@@ -183,9 +203,9 @@ function trmm_recursive!(Afull, Bfull, start_index, end_index, tileSizeA, tileSi
         # considering the lower triangular case first
 
 
-        trmm_recursive!(Afull, Bfull, start_index+split, end_index, tileSizeA, tileSizeB, nthreads)        
-        gemm!(Afull, Bfull, start_index+split, end_index, start_index, start_index+split - 1, start_index, start_index + split - 1, end_index)
-        trmm_recursive!(Afull, Bfull, start_index, start_index+split-1, tileSizeA, tileSizeB, nthreads)
+        trmm_recursive!(Afull, Bfull, Cfull, start_index+split, end_index, limit)        
+        gemm!(Afull, Bfull, Cfull, start_index+split, end_index, start_index, start_index+split - 1, start_index, start_index + split - 1, end_index)
+        trmm_recursive!(Afull, Bfull, Cfull, start_index, start_index+split-1, limit)
 
     end
 end
@@ -203,21 +223,25 @@ function trmm!(A, B)
     if size(A)[2] != size(B)[1]
         error("Matrix A and B not compatible for matrix product!")
     end
+    limit = 32
+    nthreads = (16, 16)
+    C = similar(B)
 
-    TILE_SIZE_A = 16
-    TILE_SIZE_B = 32
-    nthreads = 16
+    trmm_recursive!(A, B, C, 1, size(A)[1], limit)
 
-    trmm_recursive!(A, B, 1, size(A)[1], TILE_SIZE_A, TILE_SIZE_B, nthreads)
+    padded_C = (size(C,1)+16, size(C,2)+16)
+    backend = get_backend(A)
+    lmem_copy_kernel!(backend, nthreads)(B, C; ndrange = padded_C)
+
 
 end
 
 
-function gemm!(Afull, Bfull, ll_startR, ll_endR, ll_startC, ll_endC, b_upper_start, b_upper_end, end_index; n_threads = (16, 16))
+function gemm!(Afull, Bfull, Cfull, ll_startR, ll_endR, ll_startC, ll_endC, b_upper_start, b_upper_end, end_index; n_threads = (16, 16))
 
     A = @view(Afull[ll_startR:ll_endR, ll_startC:ll_endC])
     B = @view(Bfull[b_upper_start:b_upper_end, 1:end])
-    C = @view(Bfull[b_upper_end+1:end_index, 1:end])
+    C = @view(Cfull[b_upper_end+1:end_index, 1:end])
 
     
     backend = get_backend(A)
