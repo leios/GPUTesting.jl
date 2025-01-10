@@ -1,6 +1,5 @@
-export gemm!
-export trmm!
-export createBlockTrmm!
+export trmm_julia!
+# Using the julia GEMM and TRMM for both base calls
 
 # start: start of block A
 # end_index: end of block A
@@ -215,7 +214,7 @@ end
 
 # holder wrapper for the kernel
 
-function trmm!(A, B)
+function trmm_julia!(A, B)
     if size(A)[1] != size(A)[2]
         error("Dimension mismatch: Matrix A must be triangular!")
     end
@@ -243,22 +242,22 @@ function gemm!(Afull, Bfull, Cfull, ll_startR, ll_endR, ll_startC, ll_endC, b_up
     C = @view(Cfull[b_upper_end+1:end_index, 1:end])
 
     
-    backend = get_backend(A)
-    gemm_trmm_kernel!(backend, n_threads)(A, B, C; ndrange = size(C))
-    #KernelAbstractions.synchronize(backend)
+    # backend = get_backend(A)
+    # gemm_trmm_kernel!(backend, n_threads)(A, B, C; ndrange = size(C))
+    
 
-    # one = oneunit(eltype(A))
-    # plus = LinearAlgebra.MulAddMul(one, one)
+    one = oneunit(eltype(A))
+    plus = LinearAlgebra.MulAddMul(one, one)
     # minus = LinearAlgebra.MulAddMul(one*(-1),one)
 
-    # LinearAlgebra.generic_matmatmul!(C, 'N', 'N', A, B, plus)
+    LinearAlgebra.generic_matmatmul!(C, 'N', 'N', A, B, plus)
 end
 
 function createBlockTrmm!(A, B, C; n_threads = (16, 16))
 
-    #LinearAlgebra.generic_mattrimul!(C, 'L', 'N', identity, A, B)
-    backend = get_backend(A)
-    gemm_trmm_kernel!(backend, n_threads)(A, B, C; ndrange = size(C))
+    LinearAlgebra.generic_mattrimul!(C, 'L', 'N', identity, A, B)
+    # backend = get_backend(A)
+    # gemm_trmm_kernel!(backend, n_threads)(A, B, C; ndrange = size(C))
     
     
 

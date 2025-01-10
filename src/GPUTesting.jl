@@ -19,5 +19,8 @@ include("performant_TRMM.jl")
 include("performant_TRMM_dagger.jl")
 include("shark_TRMM.jl")
 include("basline_TRMM.jl")
+include("trmm_julia.jl")
+include("trmm_julia_gemm.jl")
+include("trmm_original.jl")
 
 end # module GPUTesting

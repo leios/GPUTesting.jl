@@ -1,6 +1,5 @@
-export gemm!
-export trmm!
-export createBlockTrmm!
+export trmm_juliaT!
+# Only replacing the Julia GEMM by own gemm!
 
 # start: start of block A
 # end_index: end of block A
@@ -215,7 +214,7 @@ end
 
 # holder wrapper for the kernel
 
-function trmm!(A, B)
+function trmm_juliaT!(A, B)
     if size(A)[1] != size(A)[2]
         error("Dimension mismatch: Matrix A must be triangular!")
     end

@@ -1,6 +1,6 @@
-export gemm!
-export trmm!
-export createBlockTrmm!
+export trmm_original!
+
+# Using own implementation for both GEMM and TRMM
 
 # start: start of block A
 # end_index: end of block A
@@ -215,7 +215,7 @@ end
 
 # holder wrapper for the kernel
 
-function trmm!(A, B)
+function trmm_original!(A, B)
     if size(A)[1] != size(A)[2]
         error("Dimension mismatch: Matrix A must be triangular!")
     end
