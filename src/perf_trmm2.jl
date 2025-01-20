@@ -1,24 +1,44 @@
+include("gemm_add.jl")
 
 
 # implementing the base kernels, dependent on the occupied side of A,
 # in place, store result in B
 
-@kernel function Lower_trmm!(A, B)
-end
-
-
-@kernel function Upper_trmm!(A, B)
-end
 
 
 
 
 # the recursive trmm functions
+# The first letter is the triangle referencing, Upper/ Lower
+# The second letter is the position of the A argument
 
-function recTRMM_LR()
+function recTRMM_LL(alpha, Afull, Bfull, start_index, end_index,  threshold)
+    backend = get_backend(A)
+
+    
+    size_A = (end_index - start_index + 1)
+    
+
+    if size_A <= threshold
+        #Lower_trmm!(backend, )
+        
+
+    else
+        # The split is the final index of A11
+        split = div((start_index + end_index), 2) 
+        
+        # 1. operate recursively on B1 : B1 = alpha * A11 * B1
+        recTRMM_LL(alpha, Afull, Bfull, split+1, end_index, threshold)
+        GEMM_ADD!(alpha, Afull)
+        
+
+    end
 end
 
-function rec_TRMM_UR()
+
+# TO DO: Finish implementation of UL
+function rec_TRMM_UL(alpha, Afull, Bfull, start_index, end_index, threshold)
+    
 end
 
 
@@ -56,7 +76,7 @@ end
 # Update B as alpha*A*B
 # Return the updated B
 function perf_trmm(side, ul, tA, dA, alpha, A, B)
-    # assume alpha = 1 and dA = 'N'
+    # assume dA = 'N'
     # call the appropriate TRMM recursive function
     if side == 'L' && ul == 'L' && tA == 'N'
     
@@ -68,6 +88,8 @@ function perf_trmm(side, ul, tA, dA, alpha, A, B)
 
 
 end
+
+
 
 
 

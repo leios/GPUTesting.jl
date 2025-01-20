@@ -22,5 +22,9 @@ include("basline_TRMM.jl")
 include("trmm_julia.jl")
 include("trmm_julia_gemm.jl")
 include("trmm_original.jl")
+include("perf_trmm2.jl")
+include("gemm_add.jl")
+include("trmm_base.jl")
+
 
 end # module GPUTesting

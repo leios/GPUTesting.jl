@@ -26,7 +26,7 @@ export createBlockTrmm!
 end
 
 
-@kernel function gemm_trmm_kernel!(A,B, C,
+@kernel function trmm_base_kernel!(A, B, C,
                             ::Val{BANK} = Val(1)) where BANK
     
     gi,gj = @index(Group, NTuple)
@@ -244,7 +244,7 @@ function gemm!(Afull, Bfull, Cfull, ll_startR, ll_endR, ll_startC, ll_endC, b_up
 
     
     backend = get_backend(A)
-    gemm_trmm_kernel!(backend, n_threads)(A, B, C; ndrange = size(C))
+    trmm_base_kernel!(backend, n_threads)(A, B, C; ndrange = size(C))
     #KernelAbstractions.synchronize(backend)
 
     # one = oneunit(eltype(A))
@@ -254,12 +254,9 @@ function gemm!(Afull, Bfull, Cfull, ll_startR, ll_endR, ll_startC, ll_endC, b_up
     # LinearAlgebra.generic_matmatmul!(C, 'N', 'N', A, B, plus)
 end
 
+
+# wrapper function for the trmm base kernel
 function createBlockTrmm!(A, B, C; n_threads = (16, 16))
-
-    #LinearAlgebra.generic_mattrimul!(C, 'L', 'N', identity, A, B)
     backend = get_backend(A)
-    gemm_trmm_kernel!(backend, n_threads)(A, B, C; ndrange = size(C))
-    
-    
-
+    trmm_base_kernel!(backend, n_threads)(A, B, C; ndrange = size(C))
 end
