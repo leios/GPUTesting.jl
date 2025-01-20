@@ -72,6 +72,11 @@ end
 # 'N'	The diagonal values of the matrix X will be read.
 # 'U'	The diagonal of the matrix X is assumed to be all ones.
 
+# TRMM/ TRSM ?
+# 'S'       Solve
+# 'M'       Multiply
+
+
 
 # Update B as alpha*A*B
 # Return the updated B

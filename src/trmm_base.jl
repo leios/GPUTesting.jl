@@ -29,7 +29,7 @@ export LeftLowerTRMM!
 
     #loop over all tiles needed for the calculation
     for t in 0:(NUM_TILES-1)
-        if t+1 == gj
+        if gi == gj
             # Cannot use @index(Global), because we use a smaller ndrange(gridsize would reduce)
             I = (gi-1) * TILE_DIM + i
             J = (gj-1) * TILE_DIM + j
@@ -61,6 +61,38 @@ export LeftLowerTRMM!
             B_sub[1] += out
 
             @synchronize
+        elseif gj < gi
+            # Cannot use @index(Global), because we use a smaller ndrange(gridsize would reduce)
+            I = (gi-1) * TILE_DIM + i
+            J = (gj-1) * TILE_DIM + j
+
+            # load inputs into tiles, with bounds checking for non-square matrices
+            if I <= N && t*TILE_DIM + j <= R
+                @inbounds tile1[i, j] = A[I, t*TILE_DIM + j]
+            else
+                @inbounds tile1[i, j] = 0.0
+            end
+            if t*TILE_DIM + i <= R && J <= M
+                @inbounds tile2[i, j] = B[t*TILE_DIM + i, J]
+            else
+                @inbounds tile2[i, j] = 0.0
+            end
+
+            # wait for all tiles to be loaded
+            @synchronize
+
+            # get global values again (because of synchronize?)
+            I = (gi-1) * TILE_DIM + i
+            J = (gj-1) * TILE_DIM + j
+
+            # calculate value of spot in output, use temporary value to allow for vectorization
+            out = zero(eltype(B))
+            @simd for k in 1:TILE_DIM
+                @inbounds out += tile1[i, k] * tile2[k, j]
+            end
+            B_sub[1] += out
+
+            @synchronize
         end
 
     end
@@ -78,10 +110,7 @@ end
 
 
 function LeftLowerTRMM!(A, B; n_threads = (16,16))
-    
     backend = get_backend(A)
-    
-
     # could not use overloading with only 2 args
     LeftLowerTRMM_kernel!(backend, n_threads)(A, B, ndrange = size(B))
 end
