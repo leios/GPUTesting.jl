@@ -27,73 +27,49 @@ export LeftLowerTRMM!
     #the number of tiles required will be dependent on the inner dimensions
     @uniform NUM_TILES = div(R + TILE_DIM - 1, TILE_DIM)
 
+    # Cannot use @index(Global), because we use a smaller ndrange(gridsize would reduce)
+    I = (gi-1) * TILE_DIM + i
+    J = (gj-1) * TILE_DIM + j
+
+    # load inputs into tiles, with bounds checking for non-square matrices
+    if I <= N && j <= R
+        @inbounds tile1[i, j] = A[I, j]
+    else
+        @inbounds tile1[i, j] = 0.0
+    end
+    
+
     #loop over all tiles needed for the calculation
-    for t in 0:(NUM_TILES-1)
-        if gi == gj
-            # Cannot use @index(Global), because we use a smaller ndrange(gridsize would reduce)
-            I = (gi-1) * TILE_DIM + i
-            J = (gj-1) * TILE_DIM + j
+    for t in 0:0 #NUM_TILES
+        
+        # Cannot use @index(Global), because we use a smaller ndrange(gridsize would reduce)
+        I = (gi-1) * TILE_DIM + i
+        J = (gj-1) * TILE_DIM + j
 
-            # load inputs into tiles, with bounds checking for non-square matrices
-            if I <= N && t*TILE_DIM + j <= R
-                @inbounds tile1[i, j] = A[I, t*TILE_DIM + j]
-            else
-                @inbounds tile1[i, j] = 0.0
-            end
-            if t*TILE_DIM + i <= R && J <= M
-                @inbounds tile2[i, j] = B[t*TILE_DIM + i, J]
-            else
-                @inbounds tile2[i, j] = 0.0
-            end
-
-            # wait for all tiles to be loaded
-            @synchronize
-
-            # get global values again (because of synchronize?)
-            I = (gi-1) * TILE_DIM + i
-            J = (gj-1) * TILE_DIM + j
-
-            # calculate value of spot in output, use temporary value to allow for vectorization
-            out = zero(eltype(B))
-            @simd for k in 1:i
-                @inbounds out += tile1[i, k] * tile2[k, j]
-            end
-            B_sub[1] += out
-
-            @synchronize
-        elseif gj < gi
-            # Cannot use @index(Global), because we use a smaller ndrange(gridsize would reduce)
-            I = (gi-1) * TILE_DIM + i
-            J = (gj-1) * TILE_DIM + j
-
-            # load inputs into tiles, with bounds checking for non-square matrices
-            if I <= N && t*TILE_DIM + j <= R
-                @inbounds tile1[i, j] = A[I, t*TILE_DIM + j]
-            else
-                @inbounds tile1[i, j] = 0.0
-            end
-            if t*TILE_DIM + i <= R && J <= M
-                @inbounds tile2[i, j] = B[t*TILE_DIM + i, J]
-            else
-                @inbounds tile2[i, j] = 0.0
-            end
-
-            # wait for all tiles to be loaded
-            @synchronize
-
-            # get global values again (because of synchronize?)
-            I = (gi-1) * TILE_DIM + i
-            J = (gj-1) * TILE_DIM + j
-
-            # calculate value of spot in output, use temporary value to allow for vectorization
-            out = zero(eltype(B))
-            @simd for k in 1:TILE_DIM
-                @inbounds out += tile1[i, k] * tile2[k, j]
-            end
-            B_sub[1] += out
-
-            @synchronize
+        # load inputs into tiles, with bounds checking for non-square matrices
+        if I <= R && J <= M
+            @inbounds tile2[i, j] = B[I, J]
+        else
+            @inbounds tile2[i, j] = 0.0
         end
+
+        # wait for all tiles to be loaded
+        @synchronize
+
+        # get global values again (because of synchronize?)
+        I = (gi-1) * TILE_DIM + i
+        J = (gj-1) * TILE_DIM + j
+
+        # calculate value of spot in output, use temporary value to allow for vectorization
+        out = zero(eltype(B))
+        @simd for k in 1:i
+            @inbounds out += tile1[i, k] * tile2[k, j]
+        end
+        B_sub[1] += out
+
+        @synchronize
+    
+        
 
     end
 
