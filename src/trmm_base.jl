@@ -1,17 +1,21 @@
 export LeftLowerTRMM!
 
-#TriangularU/L, Argument position, 
+
+# Performs in place TRMM B = A * B 
+# where A is an NxN lower triangular matrix and B is an NxM matrix
+# A is limited to matrix size 16x16 due to shared memory constraints
+
 @kernel function LeftLowerTRMM_kernel!(A,B,
                             ::Val{BANK} = Val(1)) where BANK
     
     gi,gj = @index(Group, NTuple)
     i,j = @index(Local, NTuple)
 
+    # kept at 16x16 due to shmem constraints
     TILE_DIM = @uniform @groupsize()[1]
-    BLOCK_ROWS = @uniform @groupsize()[2]
 
-    #allocating shared memory for the sub matrix product calculation
-    #BANK = 1, added to avoid banck coonflicts as a result of irregular thread access
+    # allocating shared memory for the sub matrix product calculation
+    # BANK = 1, added to avoid banck coonflicts as a result of irregular thread access
     tile1 = @localmem eltype(B) (TILE_DIM+BANK, TILE_DIM)
     tile2 = @localmem eltype(B) (TILE_DIM+BANK, TILE_DIM)
 
@@ -23,56 +27,40 @@ export LeftLowerTRMM!
     @uniform R = size(A, 2)
     @uniform M = size(B, 2)
 
-
-    #the number of tiles required will be dependent on the inner dimensions
-    @uniform NUM_TILES = div(R + TILE_DIM - 1, TILE_DIM)
-
     # Cannot use @index(Global), because we use a smaller ndrange(gridsize would reduce)
     I = (gi-1) * TILE_DIM + i
     J = (gj-1) * TILE_DIM + j
 
-    # load inputs into tiles, with bounds checking for non-square matrices
+    # load input A into tile, with bounds checking for non-square matrices
     if I <= N && j <= R
         @inbounds tile1[i, j] = A[I, j]
     else
         @inbounds tile1[i, j] = 0.0
     end
-    
 
-    #loop over all tiles needed for the calculation
-    for t in 0:0 #NUM_TILES
-        
-        # Cannot use @index(Global), because we use a smaller ndrange(gridsize would reduce)
-        I = (gi-1) * TILE_DIM + i
-        J = (gj-1) * TILE_DIM + j
-
-        # load inputs into tiles, with bounds checking for non-square matrices
-        if I <= R && J <= M
-            @inbounds tile2[i, j] = B[I, J]
-        else
-            @inbounds tile2[i, j] = 0.0
-        end
-
-        # wait for all tiles to be loaded
-        @synchronize
-
-        # get global values again (because of synchronize?)
-        I = (gi-1) * TILE_DIM + i
-        J = (gj-1) * TILE_DIM + j
-
-        # calculate value of spot in output, use temporary value to allow for vectorization
-        out = zero(eltype(B))
-        @simd for k in 1:i
-            @inbounds out += tile1[i, k] * tile2[k, j]
-        end
-        B_sub[1] += out
-
-        @synchronize
-    
-        
-
+    # load input/output B into tiles, with bounds checking for non-square matrices
+    if I <= R && J <= M
+        @inbounds tile2[i, j] = B[I, J]
+    else
+        @inbounds tile2[i, j] = 0.0
     end
 
+    # wait for all tiles to be loaded
+    @synchronize
+
+    # get global values again (because of synchronize?)
+    I = (gi-1) * TILE_DIM + i
+    J = (gj-1) * TILE_DIM + j
+
+    # calculate value of spot in output, use temporary value to allow for vectorization
+    out = zero(eltype(B))
+    @simd for k in 1:i
+        @inbounds out += tile1[i, k] * tile2[k, j]
+    end
+    B_sub[1] += out
+
+    @synchronize
+    
     # get global indices again
     I = (gi-1) * TILE_DIM + i
     J = (gj-1) * TILE_DIM + j
@@ -85,6 +73,8 @@ export LeftLowerTRMM!
 end
 
 
+
+# wrapper function for the LLTRMM kernel
 function LeftLowerTRMM!(A, B; n_threads = (16,16))
     backend = get_backend(A)
     # could not use overloading with only 2 args
