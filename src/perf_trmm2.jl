@@ -1,4 +1,7 @@
 include("gemm_add.jl")
+include("trmm_base.jl")
+export perf_trmm!
+export recTRMM_LL!
 
 
 # implementing the base kernels, dependent on the occupied side of A,
@@ -12,24 +15,30 @@ include("gemm_add.jl")
 # The first letter is the triangle referencing, Upper/ Lower
 # The second letter is the position of the A argument
 
-function recTRMM_LL(alpha, Afull, Bfull, start_index, end_index,  threshold)
-    backend = get_backend(A)
-
-    
-    size_A = (end_index - start_index + 1)
-    
-
+function recTRMM_LL!(A, B, threshold = 16)
+    size_A = size(A, 1)
     if size_A <= threshold
-        #Lower_trmm!(backend, )
+        LeftLowerTRMM!(A, B)
+    else
+        split = div(size_A, 2)
+        # Step 1: subdivide the two matrices into segments
+        A11 = @view(A[1:split, 1:split])
+        A21 = @view(A[split+1:end, 1:split])
+        A22 = @view(A[split+1:end, split+1:end])
         
 
-    else
-        # The split is the final index of A11
-        split = div((start_index + end_index), 2) 
+        B1 = @view(B[1:split, 1:end])
+        B2 = @view(B[split+1:end, 1:end])
+         
         
-        # 1. operate recursively on B1 : B1 = alpha * A11 * B1
-        recTRMM_LL(alpha, Afull, Bfull, split+1, end_index, threshold)
-        GEMM_ADD!(alpha, Afull)
+        # Step 2. operate recursively on B1 : B1 = A11 * B1
+        recTRMM_LL!(A22, B2, threshold)
+
+        # Step 3: GEMM AND ADDITION: B1 = A21*B2 + B1
+        GEMM_ADD!(A21, B1, B2)
+
+        # Step 4: operate recursively on B2 : B2 = A22 * B2
+        recTRMM_LL!(A11, B1, threshold)
         
 
     end
@@ -80,13 +89,11 @@ end
 
 # Update B as alpha*A*B
 # Return the updated B
-function perf_trmm(side, ul, tA, dA, alpha, A, B)
+function perf_trmm!(side, ul, tA, dA, alpha, A, B)
     # assume dA = 'N'
     # call the appropriate TRMM recursive function
     if side == 'L' && ul == 'L' && tA == 'N'
-    
-    elseif side == 'L' && ul == 'U' && tA == 'N'
-    
+        recTRMM_LL!(A, B)
     else
         error("Unsupported combination of parameters")
     end

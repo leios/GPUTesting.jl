@@ -1,6 +1,6 @@
 export GEMM_ADD!
 
-# should multiply then add values to B in place
+
 @kernel function GEMM_ADD_kernel!(output, @Const(input1), @Const(input2),
                                     ::Val{BANK} = Val(1)) where BANK
     gi,gj = @index(Group, NTuple)
