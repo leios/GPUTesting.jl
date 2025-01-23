@@ -3,6 +3,7 @@ include("trmm_base.jl")
 export perf_trmm!
 export recTRMM_LL!
 export recTRMM_UL!
+export recTRMM_LR!
 
 
 # implementing the base kernels, dependent on the occupied side of A,
@@ -32,13 +33,13 @@ function recTRMM_LL!(A, B, threshold = 16)
         B2 = @view(B[split+1:end, 1:end])
          
         
-        # Step 2. operate recursively on B1 : B1 = A11 * B1
+        # Step 2. operate recursively on B2 : B2 = A22 * B2
         recTRMM_LL!(A22, B2, threshold)
 
-        # Step 3: GEMM AND ADDITION: B1 = A21*B2 + B1
+        # Step 3: GEMM AND ADDITION: B2 = A21*B1 + B2
         GEMM_ADD!(A21, B1, B2)
 
-        # Step 4: operate recursively on B2 : B2 = A22 * B2
+        # Step 4: operate recursively on B1 : B1 = A11 * B1
         recTRMM_LL!(A11, B1, threshold)
         
 
@@ -46,7 +47,7 @@ function recTRMM_LL!(A, B, threshold = 16)
 end
 
 
-# TO DO: Finish implementation of UL
+
 function recTRMM_UL!(A, B, threshold = 16)
     size_A = size(A, 1)
     if size_A <= threshold
@@ -64,20 +65,52 @@ function recTRMM_UL!(A, B, threshold = 16)
          
         
         # Step 2. operate recursively on B1 : B1 = A11 * B1
-        recTRMM_LL!(A11, B1, threshold)
+        recTRMM_UL!(A11, B1, threshold)
 
-        # Step 3: GEMM AND ADDITION: B1 = A21*B2 + B1
+        # Step 3: GEMM AND ADDITION: B1 = A12*B2 + B1
         GEMM_ADD!(A12, B2, B1)
 
         # Step 4: operate recursively on B2 : B2 = A22 * B2
-        recTRMM_LL!(A22, B2, threshold)
+        recTRMM_UL!(A22, B2, threshold)
         
 
     end
 end
 
 
-# TO DO: implement recTRMM_LL and rec_TRMM_UL
+# splits are now vertical in matrix B
+# splits in A maintain their structure
+function recTRMM_LR!(A, B, threshold = 16)
+    size_A = size(A, 1)
+    if size_A <= threshold
+        RightLowerTRMM!(A, B)
+    else
+        split = div(size_A, 2)
+        # Step 1: subdivide the two matrices into segments
+        A11 = @view(A[1:split, 1:split])
+        A21 = @view(A[split+1:end, 1:split])
+        A22 = @view(A[split+1:end, split+1:end])
+        
+
+        B1 = @view(B[1:end, 1:split])
+        B2 = @view(B[1:end, split+1:end])
+         
+        
+        # Step 2. operate recursively on B1 : B1 = A11 * B1
+        recTRMM_LR!(A11, B1, threshold)
+
+        # Step 3: GEMM AND ADDITION: B1 = B2*A21 + B1: remember to switch order of args
+        GEMM_ADD!(B2, A21, B1)
+
+        # Step 4: operate recursively on B2 : B2 = A22 * B2
+        recTRMM_LR!(A22, B2, threshold)
+        
+
+    end
+end
+
+
+# TO DO: implement recTRMM_LR and rec_TRMM_UR
 
 
 
