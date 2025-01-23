@@ -2,6 +2,7 @@ include("gemm_add.jl")
 include("trmm_base.jl")
 export perf_trmm!
 export recTRMM_LL!
+export recTRMM_UL!
 
 
 # implementing the base kernels, dependent on the occupied side of A,
@@ -46,8 +47,33 @@ end
 
 
 # TO DO: Finish implementation of UL
-function rec_TRMM_UL(alpha, Afull, Bfull, start_index, end_index, threshold)
-    
+function recTRMM_UL!(A, B, threshold = 16)
+    size_A = size(A, 1)
+    if size_A <= threshold
+        LeftUpperTRMM!(A, B)
+    else
+        split = div(size_A, 2)
+        # Step 1: subdivide the two matrices into segments
+        A11 = @view(A[1:split, 1:split])
+        A12 = @view(A[1:split, split+1:end])
+        A22 = @view(A[split+1:end, split+1:end])
+        
+
+        B1 = @view(B[1:split, 1:end])
+        B2 = @view(B[split+1:end, 1:end])
+         
+        
+        # Step 2. operate recursively on B1 : B1 = A11 * B1
+        recTRMM_LL!(A11, B1, threshold)
+
+        # Step 3: GEMM AND ADDITION: B1 = A21*B2 + B1
+        GEMM_ADD!(A12, B2, B1)
+
+        # Step 4: operate recursively on B2 : B2 = A22 * B2
+        recTRMM_LL!(A22, B2, threshold)
+        
+
+    end
 end
 
 

@@ -33,10 +33,11 @@ export LeftUpperTRMM!
     J = (gj-1) * TILE_DIM + j
 
     # load input A into tile, with bounds checking for non-square matrices
-    if I <= N && j <= R
-        @inbounds tile1[i, j] = A[I, j]
+    if i <= N && j <= N
+        @inbounds tile1[i, j] = A[i, j]
     else
         @inbounds tile1[i, j] = 0.0
+        
     end
 
     # load input/output B into tiles, with bounds checking for non-square matrices
@@ -48,10 +49,6 @@ export LeftUpperTRMM!
 
     # wait for all tiles to be loaded
     @synchronize
-
-    # get global values again (because of synchronize?)
-    I = (gi-1) * TILE_DIM + i
-    J = (gj-1) * TILE_DIM + j
 
     # calculate value of spot in output, use temporary value to allow for vectorization
     out = zero(eltype(B))
@@ -71,6 +68,7 @@ export LeftUpperTRMM!
         @inbounds B[I, J] = B_sub[1]
     end
     @synchronize
+
 end
 
 
@@ -144,6 +142,13 @@ end
     @synchronize
 end
 
+
+
+
+
+
+
+##TO DO
 @kernel function RightLowerTRMM_kernel!(A,B,
     ::Val{BANK} = Val(1)) where BANK
 
@@ -159,8 +164,8 @@ end
 # wrapper function for the LLTRMM kernel
 function LeftLowerTRMM!(A, B; n_threads = (16,16))
     backend = get_backend(A)
-    # could not use overloading with only 2 args
-    LeftLowerTRMM_kernel!(backend, n_threads)(A, B, ndrange = size(B))
+    # need to specify ndrange as the larger of the 2 ARGUMENTS
+    LeftLowerTRMM_kernel!(backend, n_threads)(A, B, ndrange = max(size(A), size(B)))
 end
 
 # wrapper function for the LUTRMM kernel

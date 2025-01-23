@@ -77,5 +77,5 @@ function GEMM_ADD!(A, B, C; nthreads = (16, 16))
     # Bupper = A*B_lower + B_upper
     backend = get_backend(A)
     kernel = GEMM_ADD_kernel!(backend, nthreads)
-    kernel(C, A, B; ndrange = size(C))
+    kernel(C, A, B; ndrange = max(size(A), size(C)))
 end
