@@ -1,4 +1,5 @@
 export trmm_original!
+export gemm!
 
 # Using own implementation for both GEMM and TRMM
 
