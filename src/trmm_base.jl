@@ -282,7 +282,9 @@ end
 function LeftLowerTRMM!(A, B; n_threads = (16,16))
     backend = get_backend(A)
     # need to specify ndrange as the larger of the 2 ARGUMENTS
-    LeftLowerTRMM_kernel!(backend, n_threads)(A, B, ndrange = max(size(A), size(B)))
+    Ndrange = max(size(A), size(B))
+    Ndrange = (Ndrange[1]+ 16, Ndrange[2]+16)
+    LeftLowerTRMM_kernel!(backend, n_threads)(A, B, ndrange = Ndrange)
 end
 
 # wrapper function for the LUTRMM kernel
