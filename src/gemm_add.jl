@@ -77,6 +77,7 @@ function GEMM_ADD!(A, B, C; nthreads = (16, 16))
     # Bupper = A*B_lower + B_upper
     backend = get_backend(A)
     kernel = GEMM_ADD_kernel!(backend, nthreads)
+    # adjusted the ndrange to account for non square matrices.
     NDrange = (size(C, 1) + nthreads[1], size(C,2) + nthreads[2])
     kernel(A, B, C; ndrange =  NDrange)
 end

@@ -4,6 +4,7 @@ export perf_trmm!
 export recTRMM_LL!
 export recTRMM_UL!
 export recTRMM_LR!
+export recTRMM_UR!
 
 
 # implementing the base kernels, dependent on the occupied side of A,
@@ -104,6 +105,35 @@ function recTRMM_LR!(A, B, threshold = 16)
 
         # Step 4: operate recursively on B2 : B2 = A22 * B2
         recTRMM_LR!(A22, B2, threshold)
+        
+
+    end
+end
+
+function recTRMM_UR!(A, B, threshold = 16)
+    size_A = size(A, 1)
+    if size_A <= threshold
+        RightUpperTRMM!(A, B)
+    else
+        split = div(size_A, 2)
+        # Step 1: subdivide the two matrices into segments
+        A11 = @view(A[1:split, 1:split])
+        A12 = @view(A[1:split, split+1:end])
+        A22 = @view(A[split+1:end, split+1:end])
+        
+
+        B1 = @view(B[1:end, 1:split])
+        B2 = @view(B[1:end, split+1:end])
+         
+        
+        # Step 2. operate recursively on B1 : B1 = A11 * B1
+        recTRMM_UR!(A22, B2, threshold)
+
+        # Step 3: GEMM AND ADDITION: B1 = B2*A21 + B1: remember to switch order of args
+        GEMM_ADD!(B1, A12, B2)
+
+        # Step 4: operate recursively on B2 : B2 = A22 * B2
+        recTRMM_UR!(A11, B1, threshold)
         
 
     end
