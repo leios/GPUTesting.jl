@@ -25,6 +25,9 @@ include("trmm_original.jl")
 include("perf_trmm2.jl")
 include("gemm_add.jl")
 include("trmm_base.jl")
+include("adaptive_mp2.jl")
+include("h_decomp.jl")
+include("adaptive_mp3.jl")
 
 
 end # module GPUTesting
