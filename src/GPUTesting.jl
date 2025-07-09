@@ -28,6 +28,6 @@ include("trmm_base.jl")
 include("adaptive_mp2.jl")
 include("h_decomp.jl")
 include("adaptive_mp3.jl")
-
+include("block_generator.jl")
 
 end # module GPUTesting
