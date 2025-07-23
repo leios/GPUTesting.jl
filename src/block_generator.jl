@@ -1,4 +1,4 @@
-export build_block_structure, fast_get
+#export build_block_structure, fast_get
 
 """
 build_block_structure: computes and returns the block structure of a matrix

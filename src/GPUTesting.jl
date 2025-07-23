@@ -29,5 +29,8 @@ include("adaptive_mp2.jl")
 include("h_decomp.jl")
 include("adaptive_mp3.jl")
 include("block_generator.jl")
+#include("triangular_block_structure.jl")
+#include("triangular_block_structure2.jl")
+include("triangular_block_structure3.jl")
 
 end # module GPUTesting
