@@ -1,0 +1,31 @@
+#### CODE TO MIRROR TRSM ###
+
+function rectrmm!(  A :: AbstractMatrix { T } ,
+                    n ,
+                    B :: AbstractMatrix { T } ,
+                    threshold :: Int =256)
+                    where T <: AbstractFloat
+
+    # Call the base - case kernel for small matrices
+
+    if n <= threshold
+        lower_left_TRMMkernel ( backend , (n ,))( A , B , n ; ndrange =( n , m )) # ’ backend ’ specifies the hardware type
+    end
+
+    mid = div (n ,2)
+
+    # TRMM on bottom diagonal triangular block
+    A22 = view (A , mid+1: end , mid+1: end ) # Reference to the bottom diagonal block without copying
+    B2 = view (B , mid+1: end , 1:end) # Bottom half of B
+    rectrmm!( A22 , n - mid , B2 ; threshold = threshold )
+
+    # GEMM on subdiagonal block
+    A21 = view (A , mid +1: n , 1: mid ) # Subdiagonal block
+    B1 = view (B , 1:mid n , :) # Upper half of B
+    total_num_threads = (16, 16)
+    GEMM_ADD!( backend , ( TILE_DIM , TILE_DIM ))( A21, B1, B2, N , R , M , ndrange = size(B2)) # B2 = A21 * B1 + B2
+
+    # TRMM on upper diagonal triangular block
+    A11 = view (A , 1: mid , 1: ,mid ) # Reference to upper diagonal block
+    rectrmm!( A11 , mid , B1 ; threshold = threshold )
+end
