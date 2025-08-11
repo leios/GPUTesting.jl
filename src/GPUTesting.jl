@@ -32,5 +32,6 @@ include("block_generator.jl")
 #include("triangular_block_structure.jl")
 #include("triangular_block_structure2.jl")
 include("triangular_block_structure3.jl")
+include("TBS_test_script.jl")
 
 end # module GPUTesting

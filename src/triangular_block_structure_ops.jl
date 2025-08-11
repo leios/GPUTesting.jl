@@ -23,7 +23,7 @@ function trmm(A_tbm::TriangularBlockMatrix{T}, B_mat::AbstractMatrix{T}) where T
         # Base case: At the deepest level, perform standard matrix multiplication
         if level == A_tbm_root.l + 1
             A_leaf_block = A_tbm_root.blocks[level][diag_path + 1]
-            mul!(C_sub, A_leaf_block, B_sub) # Use mul! for in-place multiplication
+            mul!(C_sub, A_leaf_block, B_sub) # Use mul! for in-place multiplication  ... make sure it is CUBLAS GEMM
             return
         end
 
@@ -51,7 +51,7 @@ function trmm(A_tbm::TriangularBlockMatrix{T}, B_mat::AbstractMatrix{T}) where T
             # A22 is the bottom-right diagonal child (recursive call)
 
             # Compute A21 * B11 (temporary allocation)
-            temp_prod = A_off_diag_block * B11
+            temp_prod = A_off_diag_block * B11 
             
             # Add A22 * B21 (recursive call for bottom-right diagonal child)
             # This needs to be accumulated into C21.

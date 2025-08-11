@@ -2,9 +2,9 @@ export TriangularBlockMatrix, build_block_structure, fast_get
 
 using LinearAlgebra
 
-# --- 1. TriangularBlockMatrix Structure ---
+# TriangularBlockMatrix Structure
 struct TriangularBlockMatrix{T}
-    #: Now stores AbstractMatrix{T} to allow for views (SubArray)
+    #stores AbstractMatrix{T} to allow for views (SubArray)
     blocks::Vector{Vector{AbstractMatrix{T}}}
     n::Int
     l::Int
@@ -17,13 +17,14 @@ end
 Constructs a TriangularBlockMatrix from a square matrix 'A'
 and a given number of levels 'l'.
 """
-function TriangularBlockMatrix(A::Matrix{T}, l::Int; triangular_type::Symbol = :lower) where {T}
+function TriangularBlockMatrix(A::AbstractMatrix{T}, l::Int; triangular_type::Symbol = :lower) where {T}
     n = size(A, 1)
     if size(A, 1) != size(A, 2)
         error("Input matrix A must be square.")
     end
     
-    # Check if A is actually triangular of the specified type
+    # Check if A is actually triangular of the specified type: 
+    # will remove to allow for generation from any matrix form
     if triangular_type == :lower && !istril(A)
         error("Input matrix A must be lower triangular for triangular_type = :lower.")
     elseif triangular_type == :upper && !istriu(A)
@@ -38,7 +39,8 @@ end
 """
 build_block_structure: computes and returns the block structure of a matrix
 (A is assumed to be square and triangular as per TriangularBlockMatrix constructor)
-Crucially, this version stores VIEWS (`SubArray`) instead of COPIES to reduce allocations.
+Crucially, this version stores VIEWS instead of COPIES to reduce allocations.
+Done at the expense of not being able to perform mixed precision initialization
 """
 function build_block_structure(A::AbstractMatrix{T}, l::Int; triangular_type::Symbol = :lower) where {T}
     n = size(A, 1)
@@ -46,7 +48,7 @@ function build_block_structure(A::AbstractMatrix{T}, l::Int; triangular_type::Sy
     # Vector{AbstractMatrix{T}} to store SubArray views
     blocks = Vector{Vector{AbstractMatrix{T}}}(undef, l + 1) 
 
-    # --- Simplified `build_block_structure` for fixed block_idx (0-indexed `diag_path`) ---
+    # Simplified `build_block_structure` for fixed block_idx (0-indexed `diag_path`)
     # Max blocks at level l+1 is 2^l. Max off-diagonal blocks at level k is 2^(k-1).
     max_blocks_level_l_plus_1 = 2^l
     blocks[l+1] = Vector{AbstractMatrix{T}}(undef, max_blocks_level_l_plus_1) #AbstractMatrix{T}
